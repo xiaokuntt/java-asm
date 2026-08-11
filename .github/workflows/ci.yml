@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_mutation:
+        description: Run the PIT mutation suite
+        required: false
+        default: false
+        type: boolean
+      api_baseline_version:
+        description: Published version used as the API compatibility baseline
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test on Java ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [8, 11, 17, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Verify formatting
+        run: git diff --check
+      - name: Run tests
+        run: mvn -B clean test
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Verify coverage threshold
+        run: mvn -B -Pcoverage clean verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Run static quality gates
+        run: mvn -B -Pquality -DskipTests verify
+
+  benchmark-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Build JMH benchmark artifact
+        run: mvn -B -Pbenchmark -DskipTests package
+      - name: Run JMH smoke benchmark
+        run: >-
+          java -jar target/java-script-1.0.0-benchmarks.jar
+          -wi 1 -i 1 -w 200ms -r 200ms -f 1
+          '.*compileCacheHit'
+
+  reproducible-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Build artifact twice
+        run: |
+          mvn -B -DskipTests clean package
+          cp target/java-script-1.0.0.jar /tmp/java-script-first.jar
+          mvn -B -DskipTests clean package
+          cmp /tmp/java-script-first.jar target/java-script-1.0.0.jar
+
+  mutation:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Run PIT mutation testing
+        run: mvn -B -Pmutation verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pit-report
+          path: target/pit-reports
+
+  api-compatibility:
+    if: github.event_name == 'workflow_dispatch' && inputs.api_baseline_version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Compare public API with published baseline
+        run: >-
+          mvn -B -Papi-compat
+          -Dapi.baseline.version="${{ inputs.api_baseline_version }}"
+          verify
+
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Run performance smoke test
+        run: mvn -B -Pperformance test
+      - name: Build release artifacts
+        run: mvn -B -Prelease -DskipTests package

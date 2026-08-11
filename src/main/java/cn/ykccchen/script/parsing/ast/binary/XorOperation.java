@@ -1,0 +1,24 @@
+package cn.ykccchen.script.parsing.ast.binary;
+
+import cn.ykccchen.script.compile.ScriptCompiler;
+import cn.ykccchen.script.parsing.Span;
+import cn.ykccchen.script.parsing.ast.BinaryOperation;
+import cn.ykccchen.script.parsing.ast.Expression;
+
+/**
+ * ^
+ */
+public class XorOperation extends BinaryOperation {
+
+	public XorOperation(Expression leftOperand, Span span, Expression rightOperand) {
+		super(leftOperand, span, rightOperand);
+	}
+
+	@Override
+	public void compile(ScriptCompiler compiler) {
+		compiler.visit(getLeftOperand())
+				.visit(getRightOperand())
+				.lineNumber(getSpan())
+				.bit("xor");
+	}
+}
