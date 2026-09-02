@@ -1,0 +1,28 @@
+README.md
+  h_9c9ab06edb8d7f 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.7",
+  "base_commit_sha": "8392665696e264450345c8be8f87684cf396bc32",
+  "prompts": {
+    "fbd0a7434a0e56c7": {
+      "agent_id": {
+        "tool": "known_human",
+        "id": "known_human_session",
+        "model": "unknown"
+      },
+      "human_author": "陈煜坤 <chenyukun@cvte.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_9c9ab06edb8d7f": {
+      "author": "陈煜坤"
+    }
+  }
+}
