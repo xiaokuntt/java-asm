@@ -1,0 +1,28 @@
+pom.xml
+  h_9c9ab06edb8d7f 79-88,92-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.7",
+  "base_commit_sha": "554b7dd5eb0812ed709ae3988c14ef890488ece0",
+  "prompts": {
+    "fbd0a7434a0e56c7": {
+      "agent_id": {
+        "tool": "known_human",
+        "id": "known_human_session",
+        "model": "unknown"
+      },
+      "human_author": "陈煜坤 <chenyukun@cvte.com>",
+      "messages": [],
+      "total_additions": 29,
+      "total_deletions": 10,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_9c9ab06edb8d7f": {
+      "author": "陈煜坤"
+    }
+  }
+}
