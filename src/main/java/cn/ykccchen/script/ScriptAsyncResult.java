@@ -113,7 +113,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 					future.cancel(false);
 				}
 				completion.cancel(false);
-				emit(null);
+				emit(ScriptTaskState.CANCELLED, null);
 				unregister();
 				return true;
 			}
@@ -121,7 +121,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 				if (!state.compareAndSet(current, ScriptTaskState.CANCELLING)) {
 					continue;
 				}
-				emit(null);
+				emit(ScriptTaskState.CANCELLING, null);
 				Future<?> future = workerFuture;
 				if (future != null) {
 					future.cancel(mayInterruptIfRunning);
@@ -147,7 +147,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 					future.cancel(false);
 				}
 				completion.completeExceptionally(exception);
-				emit(exception);
+				emit(ScriptTaskState.TIMED_OUT, exception);
 				unregister();
 				return;
 			}
@@ -155,7 +155,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 				if (!state.compareAndSet(current, ScriptTaskState.TIMING_OUT)) {
 					continue;
 				}
-				emit(null);
+				emit(ScriptTaskState.TIMING_OUT, null);
 				Future<?> future = workerFuture;
 				if (future != null) {
 					future.cancel(true);
@@ -171,7 +171,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 		}
 		startedAtMillis = System.currentTimeMillis();
 		startedNanos = System.nanoTime();
-		emit(null);
+		emit(ScriptTaskState.RUNNING, null);
 		return true;
 	}
 
@@ -188,7 +188,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 			failure = exception;
 			markCompleted();
 			completion.completeExceptionally(exception);
-			emit(exception);
+			emit(ScriptTaskState.REJECTED, exception);
 			unregister();
 		}
 	}
@@ -227,7 +227,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 			markCompleted();
 			context.markLanguageAsyncTaskAbandoned(this);
 			completion.completeExceptionally(exception);
-			emit(exception);
+			emit(ScriptTaskState.ABANDONED, exception);
 			unregister();
 			LanguageAsyncRuntime.recordAbandonedTask();
 			return true;
@@ -235,7 +235,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 	}
 
 	void emitQueued() {
-		emit(null);
+		emit(ScriptTaskState.QUEUED, null);
 	}
 
 	private void finish(Object value, Throwable throwable) {
@@ -269,7 +269,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 			} else {
 				completion.completeExceptionally(terminalFailure);
 			}
-			emit(terminalFailure);
+			emit(terminal, terminalFailure);
 			unregister();
 			return;
 		}
@@ -307,7 +307,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 		}
 	}
 
-	private void emit(Throwable cause) {
+	private void emit(ScriptTaskState eventState, Throwable cause) {
 		long queueDuration = startedNanos == 0
 				? Math.max(0, System.nanoTime() - submittedNanos)
 				: Math.max(0, startedNanos - submittedNanos);
@@ -315,7 +315,7 @@ public final class ScriptAsyncResult implements Future<Object> {
 				? 0
 				: Math.max(0, (completedNanos == 0 ? System.nanoTime() : completedNanos) - startedNanos);
 		ScriptTaskEvent event = new ScriptTaskEvent(taskId, trace.getParentTaskId(), trace.getDepth(),
-				state.get(), context.getScriptName(), 0,
+				eventState, context.getScriptName(), 0,
 				context.getCorrelationId(), submittedAtMillis, startedAtMillis, completedAtMillis,
 				queueDuration, executionDuration, cause == null ? failure : cause);
 		for (ScriptTaskListener listener : context.getLanguageAsyncListeners()) {

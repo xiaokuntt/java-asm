@@ -540,7 +540,10 @@ public class ScriptContext {
 		for (ScriptAsyncResult task : languageAsyncTasks) {
 			task.cancel(true);
 		}
-		boolean interrupted = false;
+		// Cleanup must remain bounded even when the caller arrives with its interrupt
+		// flag set (the normal host timeout path). Preserve the signal for the caller,
+		// but allow responsive children to publish their actual terminal state first.
+		boolean interrupted = Thread.interrupted();
 		long timeoutMillis = getLanguageAsyncPolicy().getCancellationJoinTimeoutMillis();
 		long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
 		synchronized (languageAsyncMonitor) {
@@ -553,7 +556,6 @@ public class ScriptContext {
 					TimeUnit.NANOSECONDS.timedWait(languageAsyncMonitor, remaining);
 				} catch (InterruptedException exception) {
 					interrupted = true;
-					break;
 				}
 			}
 		}

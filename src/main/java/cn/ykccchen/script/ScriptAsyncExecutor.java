@@ -200,7 +200,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 	}
 
 	private ScriptTask submitTask(DefaultScriptTask task) {
-		task.emitCurrentState(null);
+		task.emitState(ScriptTaskState.QUEUED, null);
 		if (shutdown.get()) {
 			task.reject(new ScriptAsyncRejectedException("异步执行器已关闭"));
 			return task;
@@ -225,7 +225,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 			RejectedExecutionException exception) {
 		DefaultScriptTask task = new DefaultScriptTask(this, null, null, scriptName,
 				null, contextFactory, timeoutMillis);
-		task.emitCurrentState(null);
+		task.emitState(ScriptTaskState.QUEUED, null);
 		task.reject(exception);
 		return task;
 	}
@@ -386,7 +386,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 							future.cancel(false);
 						}
 						completion.completeExceptionally(exception);
-						emitCurrentState(exception);
+						emitState(ScriptTaskState.CANCELLED, exception);
 						terminate();
 						return true;
 					}
@@ -394,7 +394,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 				}
 				if (current == ScriptTaskState.RUNNING) {
 					if (state.compareAndSet(current, ScriptTaskState.CANCELLING)) {
-						emitCurrentState(null);
+						emitState(ScriptTaskState.CANCELLING, null);
 						signalCancellation(false);
 						return true;
 					}
@@ -413,7 +413,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 
 		private void timeout() {
 			if (state.compareAndSet(ScriptTaskState.RUNNING, ScriptTaskState.TIMING_OUT)) {
-				emitCurrentState(null);
+				emitState(ScriptTaskState.TIMING_OUT, null);
 				signalCancellation(true);
 			}
 		}
@@ -468,7 +468,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 				} else {
 					completion.completeExceptionally(completionFailure);
 				}
-				emitCurrentState(completionFailure);
+				emitState(terminal, completionFailure);
 				terminate();
 				return;
 			}
@@ -508,7 +508,7 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 				startedAtMillis = System.currentTimeMillis();
 				startedNanos = System.nanoTime();
 			}
-			emitCurrentState(cause);
+			emitState(updated, cause);
 			return true;
 		}
 
@@ -517,18 +517,18 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 				failure = exception;
 				markCompleted();
 				completion.completeExceptionally(exception);
-				emitCurrentState(exception);
+				emitState(ScriptTaskState.REJECTED, exception);
 				terminate();
 			}
 		}
 
 		private void failBeforeAdmission(Throwable throwable) {
-			emitCurrentState(null);
+			emitState(ScriptTaskState.QUEUED, null);
 			if (state.compareAndSet(ScriptTaskState.QUEUED, ScriptTaskState.FAILED)) {
 				failure = throwable;
 				markCompleted();
 				completion.completeExceptionally(throwable);
-				emitCurrentState(throwable);
+				emitState(ScriptTaskState.FAILED, throwable);
 				terminate();
 			}
 		}
@@ -566,14 +566,14 @@ public final class ScriptAsyncExecutor implements AutoCloseable {
 			}
 		}
 
-		private void emitCurrentState(Throwable cause) {
+		private void emitState(ScriptTaskState eventState, Throwable cause) {
 			long queueDuration = startedNanos == 0
 					? Math.max(0, System.nanoTime() - submittedNanos)
 					: Math.max(0, startedNanos - submittedNanos);
 			long executionDuration = startedNanos == 0
 					? 0
 					: Math.max(0, (completedNanos == 0 ? System.nanoTime() : completedNanos) - startedNanos);
-			owner.notifyListeners(new ScriptTaskEvent(taskId, state.get(), scriptName, scriptVersion,
+			owner.notifyListeners(new ScriptTaskEvent(taskId, eventState, scriptName, scriptVersion,
 					correlationId, submittedAtMillis, startedAtMillis, completedAtMillis,
 					queueDuration, executionDuration, cause));
 		}
