@@ -17,7 +17,6 @@
 | 编译方式 | AST + ASM JVM 字节码 |
 | 许可证 | MIT |
 
-当前基线未启用或已删除以下旧能力：嵌入式语言代码块、LINQ 专用语法、Map 自动转 Bean、`asBean` 扩展，以及依赖这些能力的历史回归脚本。Java Stream API 不受影响。
 
 ## 内容索引
 
@@ -53,6 +52,7 @@
 | [语法文档](docs/SYNTAX.md) | 脚本语法速查 |
 | [异步执行框架](docs/ASYNC_EXECUTION_DESIGN.md) | 异步任务、语言异步、取消、超时和生命周期契约 |
 | [测试文档](docs/TESTING.md) | 测试分类、覆盖率和质量门禁 |
+| [AI 业务扩展平台规划](docs/ai-plugin-platform/README.md) | 下一阶段产品原型、详细设计、Mock 数据和历史方案稿（尚未实现） |
 
 ## 安装
 
